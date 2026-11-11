@@ -1,0 +1,5 @@
+interface:
+  display_name: "CalcGO 3D 结构查看器"
+  short_description: "支持 POSCAR/CIF 的结构渲染、主题配色、截图与离线导出"
+  brand_color: "#0798AA"
+  default_prompt: "使用 $calcgo-structure-viewer 打开这个 POSCAR/CIF，并按默认视觉规范导出离线 HTML 或图片。"

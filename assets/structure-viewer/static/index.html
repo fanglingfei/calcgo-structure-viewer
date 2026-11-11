@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 结构查看器</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body data-theme="light">
+  <header>
+    <div class="logo">⚛</div>
+    <div class="head-text">
+      <h1>3D 结构查看器</h1>
+      <div class="sub">上传 POSCAR / CIF，浏览器内查看原子、成键与晶胞</div>
+    </div>
+    <div class="head-tip" id="headTip">拖动旋转 · 滚轮缩放 · 支持拖放/粘贴结构文本</div>
+  </header>
+
+  <div id="toast" class="toast"></div>
+
+  <main>
+    <aside class="left">
+      <!-- 加载结构 -->
+      <section class="card" id="cardLoad">
+        <h2>📄 加载结构</h2>
+        <div id="dropzone" class="dropzone">
+          <span class="icon">⬆️</span>
+          点击 / 拖拽文件到这里，或直接粘贴结构文本<br/>
+          <span class="hint">支持 POSCAR、CIF（含多结构 CIF）</span>
+        </div>
+        <input id="fileInput" class="file-input" type="file" accept="*" />
+
+        <div id="fileMeta" class="file-meta hidden">
+          <span id="fileName" class="file-name" title=""></span>
+          <button id="btnReplace" class="mini-btn" type="button">换一个</button>
+          <button id="btnClear" class="mini-btn danger" type="button">清空</button>
+        </div>
+        <div class="export-row">
+          <button id="btnExportOffline" class="soft-btn" type="button" disabled title="生成单文件 HTML，客户双击即可离线查看当前结构">
+            📦 导出离线 HTML（给客户）
+          </button>
+        </div>
+
+        <div id="cifWrap" class="hidden">
+          <label class="field-label">CIF 含多个结构，选择加载：</label>
+          <select id="cifSelect" class="select"></select>
+        </div>
+
+        <div class="sample-box">
+          <div class="field-label">没有文件？试试样例：</div>
+          <div class="sample-grid">
+            <button class="sample-btn" data-sample="si">金刚石 Si</button>
+            <button class="sample-btn" data-sample="h2o">水分子</button>
+            <button class="sample-btn" data-sample="tio2">金红石 TiO₂</button>
+            <button class="sample-btn" data-sample="zro2">ZrO₂ 萤石</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 成键设置 -->
+      <section class="card">
+        <h2>🔗 成键设置</h2>
+        <div class="row">
+          <label class="row-label">显示成键</label>
+          <label class="switch"><input type="checkbox" id="bondToggle" checked /><span class="slider"></span></label>
+          <span id="bondCount" class="count-tag hidden"></span>
+        </div>
+        <div class="row">
+          <label class="row-label">键长容差</label>
+          <input type="range" id="tolerance" min="1.00" max="1.40" step="0.01" value="1.15" />
+          <span id="toleranceVal" class="value-tag">1.15</span>
+        </div>
+        <div class="row row-top">
+          <label class="row-label">只看键</label>
+          <div class="chips" id="pairChips"></div>
+        </div>
+        <div class="info">
+          容差拖动即实时预览；键按两端原子颜色各显示一半。勾选元素对可只看特定键（如 Zr-O 而不看 Zr-Zr）。
+        </div>
+      </section>
+
+      <!-- 显示 / 风格 -->
+      <section class="card">
+        <h2>🎨 显示与风格</h2>
+        <div class="field-label">风格预设（一键切换整套观感）</div>
+        <div class="seg wrap" id="presetSeg">
+          <button data-preset="studio" class="on">专业白底</button>
+          <button data-preset="dark">深色科技</button>
+          <button data-preset="paper">期刊哑光</button>
+          <button data-preset="metal">金属质感</button>
+          <button data-preset="figure">论文插图</button>
+          <button data-preset="ball" title="球面报告风格：哑光偏亮 + 深色描边，和图例球、报告里的结构图一致">球面报告</button>
+          <button data-preset="poster">演示大片</button>
+        </div>
+
+        <div class="row">
+          <label class="row-label">显示模式</label>
+          <div class="seg" id="modeSeg">
+            <button data-mode-value="ballstick" class="on">球棍</button>
+            <button data-mode-value="spacefill">空间填充</button>
+            <button data-mode-value="stick">棍状</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="row-label">配色方案</label>
+          <select id="schemeSel" class="select">
+            <option value="cpk">标准 CPK（元素色）</option>
+            <option value="soft">柔和（粉彩）</option>
+            <option value="mono">单色（论文图）</option>
+          </select>
+        </div>
+        <div class="row">
+          <label class="row-label">原子大小</label>
+          <input type="range" id="atomScale" min="0.6" max="2.0" step="0.05" value="1.0" />
+          <span id="atomScaleVal" class="value-tag">1.00×</span>
+        </div>
+        <div class="row">
+          <label class="row-label">键粗细</label>
+          <input type="range" id="bondScale" min="0.4" max="2.6" step="0.05" value="1.0" />
+          <span id="bondScaleVal" class="value-tag">1.00×</span>
+        </div>
+        <div class="row">
+          <label class="row-label">显示晶胞</label>
+          <label class="switch"><input type="checkbox" id="cellToggle" checked /><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <label class="row-label">周期镜像</label>
+          <label class="switch"><input type="checkbox" id="pbcToggle" /><span class="slider"></span></label>
+        </div>
+        <div class="info">
+          关：只画晶胞范围内的原子，落在面 / 棱 / 角上的原子会按闭合晶胞补齐到各个边界位置；
+          开：再补齐邻胞镜像原子与跨边界成键，边缘原子始终是完整的球。
+        </div>
+        <div class="row row-top">
+          <label class="row-label">视角</label>
+          <div class="view-grid" id="viewSeg">
+            <button data-view="reset" class="on" title="自动取景">适应</button>
+            <button data-view="+a" title="沿 +a 晶轴方向观察">+a</button>
+            <button data-view="-a" title="沿 -a 晶轴方向观察">-a</button>
+            <button data-view="+b" title="沿 +b 晶轴方向观察">+b</button>
+            <button data-view="-b" title="沿 -b 晶轴方向观察">-b</button>
+            <button data-view="+c" title="沿 +c 晶轴方向观察">+c</button>
+            <button data-view="-c" title="沿 -c 晶轴方向观察">-c</button>
+          </div>
+        </div>
+
+        <details class="adv">
+          <summary>⚙️ 光影与材质（可调）</summary>
+          <div class="row"><label class="row-label">光照强度</label>
+            <input class="fx-range" type="range" id="fxLightPower" data-fx="lightPower" min="0.3" max="3" step="0.05" value="1" />
+            <span class="value-tag" id="fxLightPowerVal">1.00</span></div>
+          <div class="row"><label class="row-label">曝光</label>
+            <input class="fx-range" type="range" id="fxExposure" data-fx="exposure" min="0.35" max="1.8" step="0.02" value="0.92" />
+            <span class="value-tag" id="fxExposureVal">0.92</span></div>
+          <div class="row"><label class="row-label">粗糙度</label>
+            <input class="fx-range" type="range" id="fxRoughness" data-fx="roughness" min="0.05" max="1" step="0.01" value="0.34" />
+            <span class="value-tag" id="fxRoughnessVal">0.34</span></div>
+          <div class="row"><label class="row-label">金属感</label>
+            <input class="fx-range" type="range" id="fxMetalness" data-fx="metalness" min="0" max="1" step="0.01" value="0.05" />
+            <span class="value-tag" id="fxMetalnessVal">0.05</span></div>
+          <div class="row"><label class="row-label">环境反射</label>
+            <input class="fx-range" type="range" id="fxEnvRefl" data-fx="envRefl" min="0" max="2" step="0.05" value="0.45" />
+            <span class="value-tag" id="fxEnvReflVal">0.45</span></div>
+          <div class="row"><label class="row-label">环境亮度</label>
+            <input class="fx-range" type="range" id="fxEnvPower" data-fx="envPower" min="0" max="2" step="0.05" value="1" />
+            <span class="value-tag" id="fxEnvPowerVal">1.00</span></div>
+          <div class="row"><label class="row-label">原子描边</label>
+            <input class="fx-range" type="range" id="fxOutline" data-fx="outline" min="0" max="1" step="0.05" value="0.35" />
+            <span class="value-tag" id="fxOutlineVal">0.35</span></div>
+          <div class="row"><label class="row-label">辉光</label>
+            <input class="fx-range" type="range" id="fxBloom" data-fx="bloom" min="0" max="1.5" step="0.05" value="0" />
+            <span class="value-tag" id="fxBloomVal">0.00</span></div>
+          <div class="row"><label class="row-label">暗角</label>
+            <input class="fx-range" type="range" id="fxVignette" data-fx="vignette" min="0" max="1" step="0.05" value="0.22" />
+            <span class="value-tag" id="fxVignetteVal">0.22</span></div>
+          <div class="row"><label class="row-label">空气雾气</label>
+            <input class="fx-range" type="range" id="fxFog" data-fx="fog" min="0" max="1" step="0.05" value="0" />
+            <span class="value-tag" id="fxFogVal">0.00</span></div>
+          <div class="info">拖动即时生效；点上面的预设可一键回到某个好看的状态。</div>
+        </details>
+
+        <details class="adv">
+          <summary>🧊 多面体 / 背景 / 球体精度</summary>
+          <div class="field-label">配位多面体（金属中心的多面体配位环境）</div>
+          <div class="seg" id="polySeg">
+            <button data-poly="off" class="on">关闭</button>
+            <button data-poly="metal">金属中心</button>
+            <button data-poly="all">全部元素</button>
+          </div>
+          <div class="field-label">背景</div>
+          <div class="seg" id="bgSeg">
+            <button data-bg="grad" class="on">渐变</button>
+            <button data-bg="solid">纯色</button>
+            <button data-bg="none">透明</button>
+          </div>
+          <div class="field-label">球体精度（越高越细腻；结构大时用“快速”更流畅）</div>
+          <div class="seg" id="qualSeg">
+            <button data-q="fast">快速</button>
+            <button data-q="std" class="on">标准</button>
+            <button data-q="fine">精细</button>
+          </div>
+        </details>
+
+        <div class="row">
+          <label class="row-label">导出画质</label>
+          <div class="seg" id="exportScaleSeg">
+            <button data-scale="1" class="on">当前</button>
+            <button data-scale="2">2× 高清</button>
+            <button data-scale="3">3× 超清</button>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button id="btnResetView" class="soft-btn" type="button">⤾ 重置视角</button>
+          <button id="btnExportPng" class="soft-btn" type="button">⤓ 导出 PNG</button>
+<button id="btnExportLegend" class="soft-btn" type="button" title="按当前配色方案导出元素图例（PNG，可直接放进报告）">⤓ 导出图例</button>
+        </div>
+        <div class="info">PNG 走与画面完全相同的渲染通道，晶胞框和原子描边都是实时绘制，放大不会有毛刺。</div>
+      </section>
+
+      <!-- 结构信息 -->
+      <section class="card">
+        <h2>📊 结构信息</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">分子式</div><div id="formula" class="v">—</div></div>
+          <div class="stat"><div class="k">原子数</div><div id="nAtoms" class="v">—</div></div>
+          <div class="stat"><div class="k">晶胞体积</div><div id="volume" class="v">—</div></div>
+          <div class="stat"><div class="k">密度</div><div id="density" class="v">—</div></div>
+        </div>
+        <div id="cellInfo" class="info hidden"></div>
+      </section>
+    </aside>
+
+    <div class="viewer-wrap">
+      <div id="viewer"></div>
+      <div id="emptyTip" class="empty-tip">
+        上传结构文件、拖拽到页面任意位置或点击左侧样例开始<br/>
+        <span class="hint">鼠标拖拽旋转 · 滚轮缩放 · 右键拖动平移 · 悬停/点击原子可看信息</span>
+      </div>
+      <div id="hoverTip" class="hover-tip hidden"></div>
+      <div id="legend" class="legend"></div>
+      <div id="viewerMeta" class="viewer-meta hidden"></div>
+      <div id="loading"><div class="spinner"></div>解析结构中…</div>
+    </div>
+  </main>
+
+  <script src="/static/vendor/three.min.js"></script>
+  <script src="/static/vendor/three-addons/math/ConvexHull.js"></script>
+  <script src="/static/vendor/three-addons/geometries/ConvexGeometry.js"></script>
+  <script src="/static/vendor/three-addons/environments/RoomEnvironment.js"></script>
+  <script src="/static/vendor/three-addons/shaders/CopyShader.js"></script>
+  <script src="/static/vendor/three-addons/shaders/LuminosityHighPassShader.js"></script>
+  <script src="/static/vendor/three-addons/postprocessing/EffectComposer.js"></script>
+  <script src="/static/vendor/three-addons/postprocessing/MaskPass.js"></script>
+  <script src="/static/vendor/three-addons/postprocessing/RenderPass.js"></script>
+  <script src="/static/vendor/three-addons/postprocessing/ShaderPass.js"></script>
+  <script src="/static/vendor/three-addons/postprocessing/UnrealBloomPass.js"></script>
+  <script src="/static/viewer3d.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
